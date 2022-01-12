@@ -65,6 +65,10 @@ inputs:
     description: >-
       Directory that contains actions-runner software and scripts. E.g. /home/runner/actions-runner.
     required: false
+  runner-user:
+    description: >-
+      User that should execute actions-runner software and scripts. E.g. ubuntu.
+    required: false
 outputs:
   label:
     description: >-
