@@ -10,11 +10,15 @@ inputs:
       Specify here which mode you want to use:
         - 'start' - to start a new runner;
         - 'stop' - to stop the previously created runner.
-    required: true
+    required: false
   github-token:
     description: >-
       GitHub Personal Access Token with the 'repo' scope assigned.
     required: true
+  count:
+    description: >-
+      How many EC2 instances to run.
+    required: false
   ec2-image-id:
     description: >-
       EC2 Image Id (AMI). The new runner will be launched from this image.
@@ -65,6 +69,10 @@ inputs:
     description: >-
       Directory that contains actions-runner software and scripts. E.g. /home/runner/actions-runner.
     required: false
+  runner-user:
+    description: >-
+      User that should execute actions-runner software and scripts. E.g. ubuntu.
+    required: false
 outputs:
   label:
     description: >-
@@ -72,10 +80,6 @@ outputs:
       The label is used in two cases:
       - to use as the input of 'runs-on' property for the following jobs;
       - to remove the runner from GitHub when it is not needed anymore.
-  ec2-instance-id:
-    description: >-
-      EC2 Instance Id of the created runner.
-      The id is used to terminate the EC2 instance when the runner is not needed anymore.
 runs:
-  using: node12
-  main: ./dist/index.js
+  using: node16
+  main: dist/index.js

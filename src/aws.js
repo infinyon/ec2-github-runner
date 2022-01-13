@@ -3,8 +3,17 @@ const core = require('@actions/core');
 const config = require('./config');
 
 // User data scripts are run as the root user
-function buildUserDataScript(githubRegistrationToken, label) {
-  if (config.input.runnerHomeDir) {
+function buildUserDataScript(githubRegistrationToken, label, index) {
+  if (config.input.runnerHomeDir && config.input.runnerUser) {
+    return [
+      '#!/bin/bash',
+      `cd "${config.input.runnerHomeDir}"`,
+      'export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1',
+      `sudo -u ${config.input.runnerUser} ./config.sh --ephemeral --url https://github.com/${config.githubContext.owner}/${config.githubContext.repo} --token ${githubRegistrationToken} --labels ${label},${label}-${index}`,
+      `sudo -u ${config.input.runnerUser} ./run.sh`,
+      'systemctl poweroff',
+    ];
+  } else if (config.input.runnerHomeDir) {
     // If runner home directory is specified, we expect the actions-runner software (and dependencies)
     // to be pre-installed in the AMI, so we simply cd into that directory and then start the runner
     return [
@@ -12,8 +21,9 @@ function buildUserDataScript(githubRegistrationToken, label) {
       `cd "${config.input.runnerHomeDir}"`,
       'export RUNNER_ALLOW_RUNASROOT=1',
       'export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1',
-      `./config.sh --url https://github.com/${config.githubContext.owner}/${config.githubContext.repo} --token ${githubRegistrationToken} --labels ${label}`,
+      `./config.sh --ephemeral --url https://github.com/${config.githubContext.owner}/${config.githubContext.repo} --token ${githubRegistrationToken} --labels ${label},${label}-${index}`,
       './run.sh',
+      'systemctl poweroff',
     ];
   } else {
     return [
@@ -24,16 +34,17 @@ function buildUserDataScript(githubRegistrationToken, label) {
       'tar xzf ./actions-runner-linux-${RUNNER_ARCH}-2.280.3.tar.gz',
       'export RUNNER_ALLOW_RUNASROOT=1',
       'export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1',
-      `./config.sh --url https://github.com/${config.githubContext.owner}/${config.githubContext.repo} --token ${githubRegistrationToken} --labels ${label}`,
+      `./config.sh --ephemeral --url https://github.com/${config.githubContext.owner}/${config.githubContext.repo} --token ${githubRegistrationToken} --labels ${label},${label}-${index}`,
       './run.sh',
+      'systemctl poweroff',
     ];
   }
 }
 
-async function startEc2Instance(label, githubRegistrationToken) {
+async function startEc2Instance(label, index, githubRegistrationToken) {
   const ec2 = new AWS.EC2();
 
-  const userData = buildUserDataScript(githubRegistrationToken, label);
+  const userData = buildUserDataScript(githubRegistrationToken, label, index);
 
   const params = {
     ImageId: config.input.ec2ImageId,
@@ -58,19 +69,19 @@ async function startEc2Instance(label, githubRegistrationToken) {
   }
 }
 
-async function terminateEc2Instance() {
+async function terminateEc2Instance(ec2InstanceId) {
   const ec2 = new AWS.EC2();
 
   const params = {
-    InstanceIds: [config.input.ec2InstanceId],
+    InstanceIds: [ec2InstanceId],
   };
 
   try {
     await ec2.terminateInstances(params).promise();
-    core.info(`AWS EC2 instance ${config.input.ec2InstanceId} is terminated`);
+    core.info(`AWS EC2 instance ${ec2InstanceId} is terminated`);
     return;
   } catch (error) {
-    core.error(`AWS EC2 instance ${config.input.ec2InstanceId} termination error`);
+    core.error(`AWS EC2 instance ${ec2InstanceId} termination error`);
     throw error;
   }
 }
