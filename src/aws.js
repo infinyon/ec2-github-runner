@@ -56,6 +56,9 @@ async function startEc2Instance(label, index, githubRegistrationToken) {
     SecurityGroupIds: [config.input.securityGroupId],
     IamInstanceProfile: { Name: config.input.iamRoleName },
     TagSpecifications: config.tagSpecifications,
+    InstanceMarketOptions: {
+      MarketType: 'spot',
+    },
   };
 
   try {
