@@ -96,7 +96,7 @@ async function waitForRunnersRegistered(label, count) {
       }
 
       if (runners.length !== count) {
-        core.info(`Only ${runners.length} runners found`);
+        core.info(`Only ${runners.length} runners out of ${count} found`);
         return;
       }
 
