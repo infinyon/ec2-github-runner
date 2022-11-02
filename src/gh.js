@@ -57,6 +57,7 @@ function areAllRunnersOnline(runners) {
   let allOnline = true;
   for (const runner of runners) {
     if (runner.status !== 'online') {
+      core.info(`GitHub self-hosted runner is not ready: ${JSON.stringify(runner)}`);
       allOnline = false;
       break;
     }
@@ -76,6 +77,7 @@ async function waitForRunnersRegistered(label, count) {
 
   return new Promise((resolve, reject) => {
     const interval = setInterval(async () => {
+      core.info('Checking...');
       const runners = await getRunners(label);
 
       if (waitSeconds > timeoutMinutes * 60) {
@@ -86,14 +88,20 @@ async function waitForRunnersRegistered(label, count) {
         );
       }
 
-      if (runners && runners.length === count && areAllRunnersOnline(runners)) {
+      waitSeconds += retryIntervalSeconds;
+
+      if (!runners) {
+        core.info('No runners found yet');
+      }
+
+      if (runners.length !== count) {
+        core.info('Only ${runners.length} runners found');
+      }
+
+      if (areAllRunnersOnline(runners)) {
         core.info(`GitHub self-hosted runners ${JSON.stringify(runners.flatMap((r) => r.name))} are registered and ready to use`);
         clearInterval(interval);
         resolve();
-      } else {
-        core.info(`GitHub self-hosted runners are not ready: ${JSON.stringify(runners)}`);
-        waitSeconds += retryIntervalSeconds;
-        core.info('Checking...');
       }
     }, retryIntervalSeconds * 1000);
   });
