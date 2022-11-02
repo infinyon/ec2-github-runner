@@ -12,6 +12,7 @@ class Config {
       subnetId: core.getInput('subnet-id'),
       securityGroupId: core.getInput('security-group-id'),
       label: core.getInput('label'),
+      ec2InstanceIds: core.getInput('ec2-instance-ids'),
       iamRoleName: core.getInput('iam-role-name'),
       runnerHomeDir: core.getInput('runner-home-dir'),
       runnerUser: core.getInput('runner-user'),
@@ -49,31 +50,24 @@ class Config {
     if (!this.input.count) {
       this.input.count = 1;
     }
-  }
 
-  generateUniqueLabel() {
-    return Math.random().toString(36).substr(2, 5);
+    if (this.input.mode === 'start' && !this.input.label) {
+      this.input.label = Math.random().toString(36).substr(2, 5);
+    }
+
+    if (this.input.mode === 'stop') {
+      if (!this.input.label) {
+        throw new Error(`The 'label' input is not specified`);
+      }
+      if (!this.input.ec2InstanceIds) {
+        throw new Error(`The 'ec2-instance-ids' input is not specified`);
+      }
+    }
   }
 }
 
-let config = new Config();
-
-Object.defineProperty(config, 'stateLabel', {
-  value: 'label',
-  writable: false,
-  enumerable: false,
-  configurable: false,
-});
-
-Object.defineProperty(config, 'stateInstanceIds', {
-  value: 'instances',
-  writable: false,
-  enumerable: false,
-  configurable: false,
-});
-
 try {
-  module.exports = config;
+  module.exports = new Config();
 } catch (error) {
   core.error(error);
   core.setFailed(error.message);

@@ -3,14 +3,14 @@ const core = require('@actions/core');
 const config = require('./config');
 
 // User data scripts are run as the root user
-function buildUserDataScript(githubRegistrationToken, label, index) {
+function buildUserDataScript(githubRegistrationToken, label) {
   if (config.input.runnerHomeDir && config.input.runnerUser) {
     return [
       '#!/bin/bash -xe',
       `cd "${config.input.runnerHomeDir}"`,
       'export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1',
       'export EC2_INSTANCE_ID="`wget -q -O - http://169.254.169.254/latest/meta-data/instance-id || die "wget instance-id has failed: $?"`"',
-      `sudo -u ${config.input.runnerUser} ./config.sh --unattended --name $EC2_INSTANCE_ID --ephemeral --url https://github.com/${config.githubContext.owner}/${config.githubContext.repo} --token ${githubRegistrationToken} --labels ${label},${label}-${index}`,
+      `sudo -u ${config.input.runnerUser} ./config.sh --unattended --name $EC2_INSTANCE_ID --ephemeral --url https://github.com/${config.githubContext.owner}/${config.githubContext.repo} --token ${githubRegistrationToken} --labels ${label}`,
       `sudo -u ${config.input.runnerUser} ./run.sh`,
       'systemctl poweroff',
     ];
@@ -23,7 +23,7 @@ function buildUserDataScript(githubRegistrationToken, label, index) {
       'export RUNNER_ALLOW_RUNASROOT=1',
       'export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1',
       'export EC2_INSTANCE_ID="`wget -q -O - http://169.254.169.254/latest/meta-data/instance-id || die "wget instance-id has failed: $?"`"',
-      `./config.sh --unattended --name $EC2_INSTANCE_ID --ephemeral --url https://github.com/${config.githubContext.owner}/${config.githubContext.repo} --token ${githubRegistrationToken} --labels ${label},${label}-${index}`,
+      `./config.sh --unattended --name $EC2_INSTANCE_ID --ephemeral --url https://github.com/${config.githubContext.owner}/${config.githubContext.repo} --token ${githubRegistrationToken} --labels ${label}`,
       './run.sh',
       'systemctl poweroff',
     ];
@@ -37,23 +37,23 @@ function buildUserDataScript(githubRegistrationToken, label, index) {
       'export RUNNER_ALLOW_RUNASROOT=1',
       'export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1',
       'export EC2_INSTANCE_ID="`wget -q -O - http://169.254.169.254/latest/meta-data/instance-id || die "wget instance-id has failed: $?"`"',
-      `./config.sh --unattended --name $EC2_INSTANCE_ID --ephemeral --url https://github.com/${config.githubContext.owner}/${config.githubContext.repo} --token ${githubRegistrationToken} --labels ${label},${label}-${index}`,
+      `./config.sh --unattended --name $EC2_INSTANCE_ID --ephemeral --url https://github.com/${config.githubContext.owner}/${config.githubContext.repo} --token ${githubRegistrationToken} --labels ${label}`,
       './run.sh',
       'systemctl poweroff',
     ];
   }
 }
 
-async function startEc2Instance(label, index, githubRegistrationToken) {
+async function startEc2Instances(label, count, githubRegistrationToken) {
   const ec2 = new AWS.EC2();
 
-  const userData = buildUserDataScript(githubRegistrationToken, label, index);
+  const userData = buildUserDataScript(githubRegistrationToken, label);
 
   const params = {
     ImageId: config.input.ec2ImageId,
     InstanceType: config.input.ec2InstanceType,
-    MinCount: 1,
-    MaxCount: 1,
+    MinCount: count,
+    MaxCount: count,
     UserData: Buffer.from(userData.join('\n')).toString('base64'),
     SubnetId: config.input.subnetId,
     SecurityGroupIds: [config.input.securityGroupId],
@@ -66,51 +66,51 @@ async function startEc2Instance(label, index, githubRegistrationToken) {
 
   try {
     const result = await ec2.runInstances(params).promise();
-    const ec2InstanceId = result.Instances[0].InstanceId;
-    core.info(`AWS EC2 instance ${ec2InstanceId} is started`);
-    return ec2InstanceId;
+    const ec2InstanceIds = result.Instances.flatMap((i) => i.InstanceId);
+    core.info(`AWS EC2 instances ${JSON.stringify(ec2InstanceIds)} have started`);
+    return ec2InstanceIds;
   } catch (error) {
     core.error('AWS EC2 instance starting error');
     throw error;
   }
 }
 
-async function terminateEc2Instance(ec2InstanceId) {
+async function terminateEc2Instances(ec2InstanceIds) {
   const ec2 = new AWS.EC2();
 
   const params = {
-    InstanceIds: [ec2InstanceId],
+    InstanceIds: [ec2InstanceIds],
   };
 
   try {
     await ec2.terminateInstances(params).promise();
-    core.info(`AWS EC2 instance ${ec2InstanceId} is terminated`);
+    core.info(`AWS EC2 instance ${JSON.stringify(ec2InstanceIds)} is terminated`);
     return;
   } catch (error) {
-    core.error(`AWS EC2 instance ${ec2InstanceId} termination error`);
+    core.error(`AWS EC2 instance ${JSON.stringify(ec2InstanceIds)} termination error`);
     throw error;
   }
 }
 
-async function waitForInstanceRunning(ec2InstanceId) {
+async function waitForInstancesRunning(ec2InstanceIds) {
   const ec2 = new AWS.EC2();
 
   const params = {
-    InstanceIds: [ec2InstanceId],
+    InstanceIds: ec2InstanceIds,
   };
 
   try {
     await ec2.waitFor('instanceRunning', params).promise();
-    core.info(`AWS EC2 instance ${ec2InstanceId} is up and running`);
+    core.info(`AWS EC2 instance ${JSON.stringify(ec2InstanceIds)} is up and running`);
     return;
   } catch (error) {
-    core.error(`AWS EC2 instance ${ec2InstanceId} initialization error`);
+    core.error(`AWS EC2 instance ${JSON.stringify(ec2InstanceIds)} initialization error`);
     throw error;
   }
 }
 
 module.exports = {
-  startEc2Instance,
-  terminateEc2Instance,
-  waitForInstanceRunning,
+  startEc2Instances,
+  terminateEc2Instances,
+  waitForInstancesRunning,
 };
