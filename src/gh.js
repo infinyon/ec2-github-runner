@@ -11,8 +11,10 @@ async function getRunners(label) {
   try {
     const runners = await octokit.paginate('GET /repos/{owner}/{repo}/actions/runners', config.githubContext);
     const foundRunners = _.filter(runners, { labels: [{ name: label }] });
+    core.info(`Found GitHub runners ${JSON.stringify(runners.flatMap((r) => r.name))}`);
     return foundRunners;
   } catch (error) {
+    core.error(`No GitHub runners found: ${error}`);
     return null;
   }
 }
@@ -26,7 +28,7 @@ async function getRegistrationToken() {
     core.info('GitHub Registration Token is received');
     return response.data.token;
   } catch (error) {
-    core.error('GitHub Registration Token receiving error');
+    core.error(`GitHub Registration Token receiving error: ${error}`);
     throw error;
   }
 }
@@ -89,6 +91,7 @@ async function waitForRunnersRegistered(label, count) {
         clearInterval(interval);
         resolve();
       } else {
+        core.info(`GitHub self-hosted runners are not ready: ${JSON.stringify(runners)}`);
         waitSeconds += retryIntervalSeconds;
         core.info('Checking...');
       }
