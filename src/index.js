@@ -6,7 +6,7 @@ const core = require('@actions/core');
 async function startInstances(label, count, githubRegistrationToken) {
   const ec2InstanceIds = await aws.startEc2Instances(label, count, githubRegistrationToken);
   await aws.waitForInstancesRunning(ec2InstanceIds);
-  await gh.waitForRunnersRegistered(label, count);
+  await gh.waitForRunnersRegistered(ec2InstanceIds);
   return ec2InstanceIds;
 }
 

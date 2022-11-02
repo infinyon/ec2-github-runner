@@ -5,12 +5,12 @@ const config = require('./config');
 
 // use the unique label to find the runner
 // as we don't have the runner's id, it's not possible to get it in any other way
-async function getRunners(label) {
+async function getRunners(names) {
   const octokit = github.getOctokit(config.input.githubToken);
 
   try {
     const runners = await octokit.paginate('GET /repos/{owner}/{repo}/actions/runners', config.githubContext);
-    const foundRunners = _.filter(runners, { labels: [{ name: label }] });
+    const foundRunners = runners.filter((r) => names.includes(r.name));
     core.info(`Found GitHub runners ${JSON.stringify(foundRunners, null, 2)}`);
     return foundRunners;
   } catch (error) {
@@ -53,33 +53,16 @@ async function removeRunners(label) {
   }
 }
 
-function areAllRunnersOnline(runners) {
-  let allOnline = true;
-  for (const runner of runners) {
-    if (runner.status !== 'online') {
-      core.info(`GitHub self-hosted runner is not ready: ${JSON.stringify(runner)}`);
-      allOnline = false;
-      break;
-    }
-  }
-  return allOnline;
-}
-
-async function waitForRunnersRegistered(label, count) {
+async function waitForRunnersRegistered(runnerNames) {
   const timeoutMinutes = 5;
   const retryIntervalSeconds = 10;
-  const quietPeriodSeconds = 30;
+  const readyRunnerNames = [];
   let waitSeconds = 0;
 
-  core.info(`Waiting ${quietPeriodSeconds}s for the AWS EC2 instance to be registered in GitHub as a new self-hosted runner`);
-  await new Promise((r) => setTimeout(r, quietPeriodSeconds * 1000));
   core.info(`Checking every ${retryIntervalSeconds}s if the GitHub self-hosted runner is registered`);
 
   return new Promise((resolve, reject) => {
     const interval = setInterval(async () => {
-      core.info('Checking...');
-      const runners = await getRunners(label);
-
       if (waitSeconds > timeoutMinutes * 60) {
         core.error('GitHub self-hosted runner registration error');
         clearInterval(interval);
@@ -88,22 +71,27 @@ async function waitForRunnersRegistered(label, count) {
         );
       }
 
+      core.info('Checking...');
+
       waitSeconds += retryIntervalSeconds;
 
-      if (!runners) {
-        core.info('No runners found yet');
-        return;
+      const runners = await getRunners(runnerNames);
+
+      core.info(`Expected runners: ${JSON.stringify(runnerNames)}`);
+
+      for (const runner of runners) {
+        if (runner.status === 'online') {
+          core.info(`GitHub self-hosted runner ${runner.name} is ready.`);
+          readyRunnerNames.push(runner.name);
+        }
       }
 
-      if (runners.length !== count) {
-        core.info(`Only ${runners.length} runners out of ${count} found`);
-        return;
-      }
-
-      if (areAllRunnersOnline(runners)) {
-        core.info(`GitHub self-hosted runners ${JSON.stringify(runners.flatMap((r) => r.name))} are registered and ready to use`);
+      if (readyRunnerNames.length === runnerNames.length) {
+        core.info(`All GitHub self-hosted runners are registered and ready to use.`);
         clearInterval(interval);
         resolve();
+      } else {
+        core.info(`Ready runners: ${JSON.stringify(readyRunnerNames)}`);
       }
     }, retryIntervalSeconds * 1000);
   });
