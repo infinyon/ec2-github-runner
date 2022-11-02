@@ -44,8 +44,6 @@ inputs:
   label:
     description: >-
       Name of the unique label assigned to the runner.
-      The label is used to remove the runner from GitHub when the runner is not needed anymore.
-      This input is required if you use the 'stop' mode.
     required: false
   ec2-instance-ids:
     description: >-

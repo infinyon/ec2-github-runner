@@ -51,14 +51,11 @@ class Config {
       this.input.count = 1;
     }
 
-    if (this.input.mode === 'start' && !this.input.label) {
+    if (!this.input.label) {
       this.input.label = Math.random().toString(36).substr(2, 5);
     }
 
     if (this.input.mode === 'stop') {
-      if (!this.input.label) {
-        throw new Error(`The 'label' input is not specified`);
-      }
       if (!this.input.ec2InstanceIds) {
         throw new Error(`The 'ec2-instance-ids' input is not specified`);
       }

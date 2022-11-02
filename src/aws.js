@@ -79,15 +79,15 @@ async function terminateEc2Instances(ec2InstanceIds) {
   const ec2 = new AWS.EC2();
 
   const params = {
-    InstanceIds: [ec2InstanceIds],
+    InstanceIds: ec2InstanceIds,
   };
 
   try {
     await ec2.terminateInstances(params).promise();
-    core.info(`AWS EC2 instance ${JSON.stringify(ec2InstanceIds)} is terminated`);
+    core.info(`AWS EC2 instances ${JSON.stringify(ec2InstanceIds)} are terminated`);
     return;
   } catch (error) {
-    core.error(`AWS EC2 instance ${JSON.stringify(ec2InstanceIds)} termination error`);
+    core.error(`AWS EC2 instances ${JSON.stringify(ec2InstanceIds)} termination error`);
     throw error;
   }
 }
@@ -101,10 +101,10 @@ async function waitForInstancesRunning(ec2InstanceIds) {
 
   try {
     await ec2.waitFor('instanceRunning', params).promise();
-    core.info(`AWS EC2 instance ${JSON.stringify(ec2InstanceIds)} is up and running`);
+    core.info(`AWS EC2 instances ${JSON.stringify(ec2InstanceIds)} are up and running`);
     return;
   } catch (error) {
-    core.error(`AWS EC2 instance ${JSON.stringify(ec2InstanceIds)} initialization error`);
+    core.error(`AWS EC2 instances ${JSON.stringify(ec2InstanceIds)} initialization error`);
     throw error;
   }
 }

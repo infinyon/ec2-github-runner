@@ -5,14 +5,16 @@ const config = require('./config');
 
 // use the unique label to find the runner
 // as we don't have the runner's id, it's not possible to get it in any other way
-async function getRunners(label) {
+async function getRunners(names) {
   const octokit = github.getOctokit(config.input.githubToken);
 
   try {
     const runners = await octokit.paginate('GET /repos/{owner}/{repo}/actions/runners', config.githubContext);
-    const foundRunners = _.filter(runners, { labels: [{ name: label }] });
+    const foundRunners = runners.filter((r) => names.includes(r.name));
+    core.info(`Found GitHub runners ${JSON.stringify(foundRunners, null, 2)}`);
     return foundRunners;
   } catch (error) {
+    core.error(`No GitHub runners found: ${error}`);
     return null;
   }
 }
@@ -26,56 +28,40 @@ async function getRegistrationToken() {
     core.info('GitHub Registration Token is received');
     return response.data.token;
   } catch (error) {
-    core.error('GitHub Registration Token receiving error');
+    core.error(`GitHub Registration Token receiving error: ${error}`);
     throw error;
   }
 }
 
-async function removeRunners(label) {
-  const runners = await getRunners(label);
+async function removeRunners(names) {
+  const runners = await getRunners(names);
   const octokit = github.getOctokit(config.input.githubToken);
 
   // skip the runner removal process if the runner is not found
   if (!runners) {
-    core.info(`GitHub self-hosted runner with label ${label} is not found, so the removal is skipped`);
+    core.info(`GitHub self-hosted runners are not found, so the removal is skipped`);
     return;
   }
   for (const runner of runners) {
     try {
       await octokit.request('DELETE /repos/{owner}/{repo}/actions/runners/{runner_id}', _.merge(config.githubContext, { runner_id: runner.id }));
       core.info(`GitHub self-hosted runner ${runner.name} is removed`);
-      return;
     } catch (error) {
       core.error(`GitHub self-hosted runner removal error: ${error}`);
     }
   }
 }
 
-function areAllRunnersOnline(runners) {
-  let allOnline = true;
-  for (const runner of runners) {
-    if (runner.status !== 'online') {
-      allOnline = false;
-      break;
-    }
-  }
-  return allOnline;
-}
-
-async function waitForRunnersRegistered(label, count) {
+async function waitForRunnersRegistered(runnerNames) {
   const timeoutMinutes = 5;
   const retryIntervalSeconds = 10;
-  const quietPeriodSeconds = 30;
+  const readyRunnerNames = [];
   let waitSeconds = 0;
 
-  core.info(`Waiting ${quietPeriodSeconds}s for the AWS EC2 instance to be registered in GitHub as a new self-hosted runner`);
-  await new Promise((r) => setTimeout(r, quietPeriodSeconds * 1000));
   core.info(`Checking every ${retryIntervalSeconds}s if the GitHub self-hosted runner is registered`);
 
   return new Promise((resolve, reject) => {
     const interval = setInterval(async () => {
-      const runners = await getRunners(label);
-
       if (waitSeconds > timeoutMinutes * 60) {
         core.error('GitHub self-hosted runner registration error');
         clearInterval(interval);
@@ -84,13 +70,29 @@ async function waitForRunnersRegistered(label, count) {
         );
       }
 
-      if (runners && runners.length === count && areAllRunnersOnline(runners)) {
-        core.info(`GitHub self-hosted runners ${JSON.stringify(runners.flatMap((r) => r.name))} are registered and ready to use`);
+      core.info('Checking...');
+
+      waitSeconds += retryIntervalSeconds;
+
+      const runners = await getRunners(runnerNames);
+
+      core.info(`Expected runners: ${JSON.stringify(runnerNames)}`);
+
+      for (const runner of runners) {
+        if (runner.status === 'online') {
+          core.info(`GitHub self-hosted runner ${runner.name} is ready.`);
+          if (!readyRunnerNames.includes(runner.name)) {
+            readyRunnerNames.push(runner.name);
+          }
+        }
+      }
+
+      if (readyRunnerNames.length === runnerNames.length) {
+        core.info(`All GitHub self-hosted runners are registered and ready to use.`);
         clearInterval(interval);
         resolve();
       } else {
-        waitSeconds += retryIntervalSeconds;
-        core.info('Checking...');
+        core.info(`Ready runners: ${JSON.stringify(readyRunnerNames)}`);
       }
     }, retryIntervalSeconds * 1000);
   });
