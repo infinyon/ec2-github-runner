@@ -33,13 +33,13 @@ async function getRegistrationToken() {
   }
 }
 
-async function removeRunners(label) {
-  const runners = await getRunners(label);
+async function removeRunners(names) {
+  const runners = await getRunners(names);
   const octokit = github.getOctokit(config.input.githubToken);
 
   // skip the runner removal process if the runner is not found
   if (!runners) {
-    core.info(`GitHub self-hosted runner with label ${label} is not found, so the removal is skipped`);
+    core.info(`GitHub self-hosted runners are not found, so the removal is skipped`);
     return;
   }
   for (const runner of runners) {

@@ -17,19 +17,18 @@ async function start() {
 
   const githubRegistrationToken = await gh.getRegistrationToken();
 
-  const instanceIds = await startInstances(label, count, githubRegistrationToken);
+  const ec2InstanceIds = await startInstances(label, count, githubRegistrationToken);
 
   core.setOutput('label', label);
-  core.setOutput('instance-ids', JSON.stringify(instanceIds));
+  core.setOutput('ec2-instance-ids', JSON.stringify(ec2InstanceIds));
 }
 
 async function stop() {
   try {
-    const label = config.input.label;
-    const instanceIds = JSON.parse(config.input.ec2InstanceId);
+    const ec2InstanceIds = JSON.parse(config.input.ec2InstanceIds);
 
-    await aws.terminateEc2Instances(instanceIds);
-    await gh.removeRunners(label);
+    await aws.terminateEc2Instances(ec2InstanceIds);
+    await gh.removeRunners(ec2InstanceIds);
   } catch (error) {
     core.error(error);
     core.setFailed(error.message);
