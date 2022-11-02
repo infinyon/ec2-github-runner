@@ -82,7 +82,9 @@ async function waitForRunnersRegistered(runnerNames) {
       for (const runner of runners) {
         if (runner.status === 'online') {
           core.info(`GitHub self-hosted runner ${runner.name} is ready.`);
-          readyRunnerNames.push(runner.name);
+          if (!readyRunnerNames.includes(runner.name)) {
+            readyRunnerNames.push(runner.name);
+          }
         }
       }
 
