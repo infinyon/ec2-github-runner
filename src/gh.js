@@ -92,10 +92,12 @@ async function waitForRunnersRegistered(label, count) {
 
       if (!runners) {
         core.info('No runners found yet');
+        return;
       }
 
       if (runners.length !== count) {
-        core.info('Only ${runners.length} runners found');
+        core.info(`Only ${runners.length} runners found`);
+        return;
       }
 
       if (areAllRunnersOnline(runners)) {
