@@ -11,7 +11,7 @@ function buildUserDataScript(githubRegistrationToken, label) {
       'export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1',
       'export EC2_INSTANCE_ID="`wget -q -O - http://169.254.169.254/latest/meta-data/instance-id || die "wget instance-id has failed: $?"`"',
       `sudo -u ${config.input.runnerUser} ./config.sh --unattended --name $EC2_INSTANCE_ID --ephemeral --url https://github.com/${config.githubContext.owner}/${config.githubContext.repo} --token ${githubRegistrationToken} --labels ${label}`,
-      `sudo -u ${config.input.runnerUser} ./run.sh`,
+      `sudo -u ${config.input.runnerUser} timeout 30m ./run.sh || systemctl poweroff`,
       'systemctl poweroff',
     ];
   } else if (config.input.runnerHomeDir) {
@@ -24,7 +24,7 @@ function buildUserDataScript(githubRegistrationToken, label) {
       'export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1',
       'export EC2_INSTANCE_ID="`wget -q -O - http://169.254.169.254/latest/meta-data/instance-id || die "wget instance-id has failed: $?"`"',
       `./config.sh --unattended --name $EC2_INSTANCE_ID --ephemeral --url https://github.com/${config.githubContext.owner}/${config.githubContext.repo} --token ${githubRegistrationToken} --labels ${label}`,
-      './run.sh',
+      'timeout 30m ./run.sh || systemctl poweroff',
       'systemctl poweroff',
     ];
   } else {
@@ -38,7 +38,7 @@ function buildUserDataScript(githubRegistrationToken, label) {
       'export DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1',
       'export EC2_INSTANCE_ID="`wget -q -O - http://169.254.169.254/latest/meta-data/instance-id || die "wget instance-id has failed: $?"`"',
       `./config.sh --unattended --name $EC2_INSTANCE_ID --ephemeral --url https://github.com/${config.githubContext.owner}/${config.githubContext.repo} --token ${githubRegistrationToken} --labels ${label}`,
-      './run.sh',
+      'timeout 30m  ./run.sh || systemctl poweroff',
       'systemctl poweroff',
     ];
   }
