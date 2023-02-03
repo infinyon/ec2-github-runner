@@ -55,14 +55,20 @@ async function startEc2Instances(label, count, githubRegistrationToken) {
     MinCount: count,
     MaxCount: count,
     UserData: Buffer.from(userData.join('\n')).toString('base64'),
-    SubnetId: config.input.subnetId,
-    SecurityGroupIds: [config.input.securityGroupId],
     IamInstanceProfile: { Name: config.input.iamRoleName },
     TagSpecifications: config.tagSpecifications,
     InstanceMarketOptions: {
       MarketType: 'spot',
     },
   };
+
+  if (config.input.subnetId) {
+    params.SubnetId = config.input.subnetId;
+  }
+
+  if (config.input.securityGroupId) {
+    params.SecurityGroupIds = [config.input.securityGroupId];
+  }
 
   try {
     const result = await ec2.runInstances(params).promise();
